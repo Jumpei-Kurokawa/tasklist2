@@ -6,6 +6,8 @@ use Illuminate\Http\Request;
 
 use App\Task;
 
+use App\Http\Controllers\Controller;
+
 class TasksController extends Controller
 {
     /**
@@ -14,12 +16,22 @@ class TasksController extends Controller
      * @return \Illuminate\Http\Response
      */
     public function index()
-    {
-        $tasks = task::all();
+    {   
+        
+        $data = [];
+        if (\Auth::check()) {
+            $user = \Auth::user();
+            $tasks = $user->tasks()->orderBy('created_at', 'desc')->paginate(10);
 
-        return view('tasks.index', [
-            'tasks' => $tasks,
-        ]);
+            $data = [
+                'user' => $user,
+                'tasks' => $tasks,
+            ];
+            $data += $this->counts($user);
+            return view('tasks.index', $data);
+        }else {
+            return view('welcome');
+        }
     }
 
     /**
@@ -33,7 +45,9 @@ class TasksController extends Controller
 
         return view('tasks.create', [
             'task' => $task,
-        ]);    }
+        ]);    
+        
+    }
 
     /**
      * Store a newly created resource in storage.
@@ -44,16 +58,20 @@ class TasksController extends Controller
     public function store(Request $request)
     {
         $this->validate($request, [
-            'title' => 'required|max:191',
+            'status' => 'required|max:10',
             'content' => 'required|max:191',
         ]);
         
-        $task = new Task;
-        $task->title = $request->title;
-        $task->content = $request->content;
-        $task->save();
+        $request->user()->tasks()->create([
+            'status' => $request->status,
+            'content' => $request->content,
+        ]);
 
-        return redirect('/');    }
+        return redirect('/');
+        
+       
+        
+    }
 
     /**
      * Display the specified resource.
@@ -95,12 +113,12 @@ class TasksController extends Controller
     public function update(Request $request, $id)
     {
          $this->validate($request, [
-            'title' => 'required|max:191',
+            'status' => 'required|max:10',
             'content' => 'required|max:191',
         ]);
         
         $task = Task::find($id);
-        $task->title = $request->title;
+        $task->status = $request->status;
         $task->content = $request->content;
         $task->save();
 
